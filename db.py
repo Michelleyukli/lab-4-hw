@@ -1,9 +1,14 @@
 import psycopg2
 
 class Database:
-    def __init__(self, database_url) -> None:
+    def __init__(self, database_url):
         self.con = psycopg2.connect(database_url)
         self.cur = self.con.cursor()
+        self.setup_database()
+
+    def setup_database(self):
+        self.create_books_table()
+        self.update_books_table()
 
     def create_books_table(self):
         q = """
@@ -12,7 +17,7 @@ class Database:
             title TEXT NOT NULL,
             price NUMERIC(5,2) NOT NULL,
             rating TEXT NOT NULL,
-            description TEXT NOT NULL,
+            description TEXT NOT NULL DEFAULT '',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
@@ -20,12 +25,17 @@ class Database:
         self.cur.execute(q)
         self.con.commit()
 
-    def truncate_books_table(self):
+    def update_books_table(self):
+        # This method can be used to add new columns if needed
         q = """
-        TRUNCATE TABLE books
+        ALTER TABLE books
+        ADD COLUMN IF NOT EXISTS description TEXT NOT NULL DEFAULT '';
         """
-        self.cur.execute(q)
-        self.con.commit()
+        try:
+            self.cur.execute(q)
+            self.con.commit()
+        except Exception as e:
+            print(f"Error updating table: {e}")
 
     def insert_book(self, book):
         q = """
@@ -44,3 +54,10 @@ class Database:
         description_term = f"%{description_query}%"
         self.cur.execute(q, (search_term, description_term))
         return self.cur.fetchall()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.cur.close()
+        self.con.close()
