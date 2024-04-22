@@ -6,8 +6,18 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Function to establish a connection to the database
+def connect_db():
+    con = psycopg2.connect(os.getenv("DATABASE_URL"))
+    return con
+
 # Function to fetch books data from the database with optional filters and sorting
 def fetch_books(search_query='', sort_by='title', order='asc'):
+    # Validate sort_by parameter to prevent SQL injection and UndefinedColumn errors
+    valid_sort_columns = {'id', 'title', 'price', 'rating', 'description'}
+    if sort_by not in valid_sort_columns:
+        raise ValueError(f"Invalid column name for sorting: {sort_by}")
+
     con = connect_db()
     cur = con.cursor()
     search_query = f"%{search_query}%"
@@ -25,25 +35,25 @@ def fetch_books(search_query='', sort_by='title', order='asc'):
     con.close()
     return df
 
-# Function to establish a connection to the database
-def connect_db():
-    con = psycopg2.connect(os.getenv("DATABASE_URL"))
-    return con
-
 # Streamlit webpage setup
 st.title('Book Display, Filter, and Search Portal')
 
 # Search and filter options
 search_query = st.text_input('Search for books (title, description)')
-sort_options = ['title', 'price', 'rating']
+sort_options = ['id', 'title', 'price', 'rating', 'description']  # updated to include all valid column names
 sort_by = st.selectbox('Sort by', sort_options, index=0)
 order_options = ['asc', 'desc']
 order = st.selectbox('Order', order_options, index=0)
 
 # Fetch and display books
-books_df = fetch_books(search_query=search_query, sort_by=sort_by, order=order)
-if not books_df.empty:
-    st.write("Books found:", books_df.shape[0])
-    st.dataframe(books_df)
-else:
-    st.write("No books found.")
+try:
+    books_df = fetch_books(search_query=search_query, sort_by=sort_by, order=order)
+    if not books_df.empty:
+        st.write("Books found:", books_df.shape[0])
+        st.dataframe(books_df)
+    else:
+        st.write("No books found.")
+except ValueError as e:
+    st.error(e)
+except Exception as e:
+    st.error(f"An error occurred: {e}")
