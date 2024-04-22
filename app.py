@@ -1,9 +1,8 @@
 import streamlit as st
 import pandas as pd
-from db import Database
 import os
-from dotenv import pip install -r requirements.txt
-
+from database import Database
+from dotenv import load_dotenv
 
 load_dotenv()
 
